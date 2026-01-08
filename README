@@ -1,0 +1,4 @@
+HERE IS ALL YOU NEED TO INSTALL: 
+
+
+python -m pip install --upgrade pip setuptools requests colorama fade
